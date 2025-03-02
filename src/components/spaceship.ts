@@ -24,7 +24,8 @@ export class Spaceship {
   }
 
   setJoystickInput(x: number, y: number): void {
-    this.sprite.setVelocity(x, y);
+    this.joystickX = x;
+    this.joystickY = y;
   }
 
   moveToCenter(): void {

@@ -8,6 +8,7 @@ export class GameScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: any;
   private isShooting = false;
+  private isTouching = false;
 
   constructor() {
     super('Start');
@@ -48,7 +49,6 @@ export class GameScene extends Phaser.Scene {
 
     let startX = 0;
     let startY = 0;
-    let isTouching = false;
     const maxSpeed = 1;
     const speedMultiplier = 0.04;
 
@@ -59,11 +59,11 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       startX = pointer.x;
       startY = pointer.y;
-      isTouching = true;
+      this.isTouching = true;
     });
 
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (isTouching) {
+      if (this.isTouching) {
         const deltaX = pointer.x - startX;
         const deltaY = pointer.y - startY;
 
@@ -83,7 +83,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.input.on('pointerup', () => {
-      isTouching = false;
+      this.isTouching = false;
       this.spaceship.setJoystickInput(0, 0);
       this.spaceship.moveToCenter();
     });
@@ -94,27 +94,31 @@ export class GameScene extends Phaser.Scene {
       this.stars.update(this.spaceship.getSpeedMultiplier());
       this.spaceship.update();
 
-      // let speedX = 0;
-      // let speedY = 0;
-      // const speed = 300;
-      //
-      // if (this.cursors.left.isDown || this.wasd.A.isDown) {
-      //   speedX = -speed;
-      // } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-      //   speedX = speed;
-      // }
-      //
-      // if (this.cursors.space.isDown && !this.isShooting) {
-      //   this.fireBullet(this.spaceship.sprite.x, this.spaceship.sprite.y - 20);
-      //   this.isShooting = true; // 🔥 Flag beállítása, hogy lő
-      // }
-      //
-      // // 🔥 Flag visszaállítása, ha felengedték a gombot
-      // if (Phaser.Input.Keyboard.JustUp(this.cursors.space)) {
-      //   this.isShooting = false;
-      // }
-      //
-      // this.spaceship.setJoystickInput(speedX, speedY);
+      let speedX = 0;
+      let speedY = 0;
+      const speed = 1;
+
+      if (this.isTouching) {
+        return;
+      }
+
+      if (this.cursors.left.isDown || this.wasd.A.isDown) {
+        speedX = -speed;
+      } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+        speedX = speed;
+      }
+
+      if (this.cursors.space.isDown && !this.isShooting) {
+        this.fireBullet(this.spaceship.sprite.x, this.spaceship.sprite.y - 20);
+        this.isShooting = true; // 🔥 Flag beállítása, hogy lő
+      }
+
+      // 🔥 Flag visszaállítása, ha felengedték a gombot
+      if (Phaser.Input.Keyboard.JustUp(this.cursors.space)) {
+        this.isShooting = false;
+      }
+
+      this.spaceship.setJoystickInput(speedX, speedY);
     }
   }
 }
