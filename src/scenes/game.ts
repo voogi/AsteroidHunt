@@ -27,7 +27,7 @@ export class GameScene extends Phaser.Scene {
       frameHeight: 32,
       spacing: 0,
     });
-    this.load.spritesheet('bullet', './bullet_2_12x20.png', {
+    this.load.spritesheet('bullet', './Bullet_2_12x20.png', {
       frameWidth: 12,
       frameHeight: 20,
     });
