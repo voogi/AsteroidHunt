@@ -19,7 +19,7 @@ export class GameScene extends Phaser.Scene {
   public stage: number = 1;
   private baseSpeed: number = 1;
   private stageTimer!: Phaser.Time.TimerEvent;
-  private baseStageLength = 3000;
+  private baseStageLength = 10000;
   private maxStageTime = 600000;
 
   constructor() {
@@ -99,6 +99,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   restartGame() {
+    this.stage = 1;
     this.scene.restart();
   }
 
@@ -128,11 +129,15 @@ export class GameScene extends Phaser.Scene {
       asteroidMobility,
       asteroidSize,
       asteroidHealth,
-      cometProbability,
-      powerupProbability,
     } = this.calculateStageSettings();
 
     this.stars.setSpeed(gameSpeed);
+    this.asteroids.updateSettings({
+      count: asteroidCount,
+      mobility: asteroidMobility,
+      size: asteroidSize,
+      health: asteroidHealth,
+    });
   }
 
   private calculateStageSettings() {

@@ -8,12 +8,25 @@ interface AsteroidConfig {
   y: number;
 }
 
+interface AsteroidSettings {
+  count: number;
+  mobility: number;
+  size: number;
+  health: number;
+}
+
 export class Asteroids {
   private scene: Phaser.Scene;
   private ship: Spaceship;
   private asteroids: Phaser.Physics.Arcade.Group;
   private stage: number;
   private timeEvent: Phaser.Time.TimerEvent | null = null;
+  private settings: AsteroidSettings = {
+    count: 8,
+    mobility: 1,
+    size: 1,
+    health: 1,
+  };
 
   constructor(scene: Phaser.Scene, ship: Spaceship, stage: number = 1) {
     this.scene = scene;
@@ -22,9 +35,15 @@ export class Asteroids {
     this.stage = stage;
   }
 
+  updateSettings(newSettings: AsteroidSettings) {
+    this.settings = newSettings;
+  }
+
   private spawnAsteroid(config: AsteroidConfig) {
-    const speed = Phaser.Math.Between(50, 100) * this.stage;
-    const rotationSpeed = Phaser.Math.FloatBetween(-1, 1) * this.stage;
+    const speed = Phaser.Math.Between(50, 200) * this.settings.mobility;
+    console.log('speed', speed);
+    const rotationSpeed =
+      Phaser.Math.FloatBetween(-1, 1) * this.settings.mobility;
 
     const asteroid = this.asteroids.create(
       config.x,
@@ -46,11 +65,13 @@ export class Asteroids {
       this.timeEvent.remove();
     }
 
+    const spawnInterval = Math.max(500, 1000 / this.settings.count);
+
     this.timeEvent = this.scene.time.addEvent({
-      delay: 1000,
+      delay: spawnInterval,
       callback: () => {
-        const size = Phaser.Math.Between(1, 5);
-        const health = size <= 2 ? 2 : 4;
+        const size = Phaser.Math.Clamp(this.settings.size, 1, 5);
+        const health = Phaser.Math.Clamp(this.settings.health, 1, 5);
         const x = Phaser.Math.Between(0, this.scene.scale.width);
         this.spawnAsteroid({ size, health, x, y: 0 });
       },
@@ -71,8 +92,8 @@ export class Asteroids {
 
     if (size > 1) {
       for (let i = 0; i < size; i++) {
-        const x = Phaser.Math.Between(asteroid.x, asteroid.x + 10);
-        const y = Phaser.Math.Between(asteroid.y, asteroid.y + 10);
+        const x = Phaser.Math.Between(asteroid.x - 10, asteroid.x + 10);
+        const y = Phaser.Math.Between(asteroid.y - 10, asteroid.y + 10);
         this.spawnAsteroid({ size: 1, health: 1, x, y });
       }
     }
