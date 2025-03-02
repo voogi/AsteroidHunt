@@ -27,16 +27,16 @@ export class GameScene extends Phaser.Scene {
       frameHeight: 32,
       spacing: 0,
     });
-    this.load.spritesheet('bullet', 'assets/bullet_2_12x20.png', {
+    this.load.spritesheet('bullet', './bullet_2_12x20.png', {
       frameWidth: 12,
       frameHeight: 20,
     });
-    this.load.spritesheet('explosion', 'assets/exp2.png', {
+    this.load.spritesheet('explosion', './exp2.png', {
       frameWidth: 16,
       frameHeight: 16,
     });
-    this.load.image('asteroid', 'assets/asteroid.png');
-    this.load.image('heart', 'assets/heart.png');
+    this.load.image('asteroid', './asteroid.png');
+    this.load.image('heart', './heart.png');
   }
 
   create(): void {
