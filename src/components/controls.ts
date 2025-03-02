@@ -24,18 +24,13 @@ export class Controls {
     this.cursors = this.scene.input.keyboard!.createCursorKeys();
     this.wasd = this.scene.input.keyboard!.addKeys('W,A,S,D');
 
-    // 🔥 Kezdeti pointerek
     this.pointer1 = this.scene.input.pointer1;
     this.pointer2 = this.scene.input.pointer2;
 
-    // 🔥 Jobb ujj (lövés)
     this.scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (pointer === this.pointer2) {
-        this.ship.fireBullet();
-      }
+      this.ship.fireBullet();
     });
 
-    // 🔥 Bal ujj (irányítás)
     this.scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer === this.pointer1) {
         this.startX = pointer.x;
@@ -44,7 +39,6 @@ export class Controls {
       }
     });
 
-    // 🔥 Bal ujj mozgás
     this.scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (pointer === this.pointer1 && this.isTouching) {
         const deltaX = pointer.x - this.startX;
@@ -65,12 +59,11 @@ export class Controls {
       }
     });
 
-    // 🔥 Bal ujj felengedése (csak ilyenkor reseteljen középre)
     this.scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
       if (pointer === this.pointer1) {
         this.isTouching = false;
         this.ship.setJoystickInput(0, 0);
-        this.ship.moveToCenter(); // 🔥 Csak bal ujj reseteljen középre
+        this.ship.moveToCenter();
       }
     });
   }
