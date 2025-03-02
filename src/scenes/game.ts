@@ -3,6 +3,8 @@ import { Stars } from '../components/stars';
 import { Spaceship } from '../components/spaceship';
 import { Asteroids } from '../components/asteroids';
 import { Controls } from '../components/controls';
+import { Preloader } from '../components/preloader';
+import { UserInterface } from '../components/user-interface';
 
 type GameState = 'MainMenu' | 'Playing' | 'GameOver';
 
@@ -11,54 +13,31 @@ export class GameScene extends Phaser.Scene {
   private stars!: Stars;
   private spaceship!: Spaceship;
   private asteroids!: Asteroids;
+  private userInterface!: UserInterface;
   private controls!: Controls;
-  private score = 0;
-  private scoreText!: Phaser.GameObjects.Text;
-  private lives: number = 3;
-  private hearts: Phaser.GameObjects.Image[] = [];
+  private loader!: Preloader;
+  public stage: number = 1;
+  private baseSpeed: number = 1;
+  private stageTimer!: Phaser.Time.TimerEvent;
+  private baseStageLength = 3000;
+  private maxStageTime = 600000;
 
   constructor() {
     super('Start');
   }
 
   preload(): void {
-    this.load.spritesheet('spaceship', './Lightning.png', {
-      frameWidth: 32,
-      frameHeight: 32,
-      spacing: 0,
-    });
-    this.load.spritesheet('bullet', './Bullet_2_12x20.png', {
-      frameWidth: 12,
-      frameHeight: 20,
-    });
-    this.load.spritesheet('explosion', './exp2.png', {
-      frameWidth: 16,
-      frameHeight: 16,
-    });
-    this.load.image('asteroid', './asteroid.png');
-    this.load.image('heart', './heart.png');
+    this.loader = new Preloader(this);
+    this.loader.init();
   }
 
   create(): void {
     this.stars = new Stars(this);
     this.spaceship = new Spaceship(this);
-    this.asteroids = new Asteroids(this);
+    this.asteroids = new Asteroids(this, this.spaceship);
     this.controls = new Controls(this, this.spaceship);
-
-    const startButton = this.add
-      .text(this.scale.width / 2, this.scale.height / 2, 'Start', {
-        fontSize: '30px',
-        color: '#ffffff',
-        backgroundColor: '#333',
-        padding: { x: 20, y: 10 },
-      })
-      .setOrigin(0.5)
-      .setInteractive();
-
-    startButton.on('pointerdown', () => {
-      startButton.destroy();
-      this.startGame();
-    });
+    this.userInterface = new UserInterface(this);
+    this.userInterface.create();
 
     this.anims.create({
       key: 'bullet_fly',
@@ -66,7 +45,6 @@ export class GameScene extends Phaser.Scene {
       frameRate: 20,
       repeat: -1,
     });
-
     this.anims.create({
       key: 'explosion_anim',
       frames: this.anims.generateFrameNumbers('explosion', {
@@ -77,31 +55,19 @@ export class GameScene extends Phaser.Scene {
       repeat: 0,
     });
 
-    this.scoreText = this.add
-      .text(this.scale.width - 10, 10, 'Points: 0', {
-        fontSize: '20px',
-        color: '#ffffff',
-        fontFamily: 'Arial',
-        align: 'right',
-      })
-      .setOrigin(1, 0);
-
-    for (let i = 0; i < this.lives; i++) {
-      const heart = this.add.image(10 + i * 20, 18, 'heart');
-      heart.setScale(0.5);
-      heart.setOrigin(0, 0);
-      this.hearts.push(heart);
-    }
-
     this.physics.add.collider(
       this.asteroids.getGroup(),
       this.spaceship.getBullets(),
-      (asteroid: any, bullet: any) => {
-        this.playExplosion(asteroid.x, asteroid.y);
-        this.score += 1;
-        this.updateScoreText();
-        asteroid.destroy();
+      // @ts-ignore
+      (
+        asteroid: Phaser.Physics.Arcade.Sprite,
+        bullet: Phaser.Physics.Arcade.Sprite
+      ) => {
+        this.asteroids.hitAsteroid(asteroid);
         bullet.destroy();
+        this.playExplosion(asteroid.x, asteroid.y);
+        this.userInterface.score += 1;
+        this.userInterface.updateScoreText();
       }
     );
 
@@ -109,18 +75,15 @@ export class GameScene extends Phaser.Scene {
       this.asteroids.getGroup(),
       this.spaceship.sprite,
       (ship: any, asteroid: any) => {
-        this.loseLife();
+        this.userInterface.loseLife();
         asteroid.destroy();
       }
     );
   }
 
-  updateScoreText() {
-    this.scoreText.setText(`Points: ${this.score}`);
-  }
-
   playExplosion(x: number, y: number) {
     const explosion = this.add.sprite(x, y, 'explosion');
+    explosion.setScale(3);
     explosion.play('explosion_anim');
 
     explosion.on('animationcomplete', () => {
@@ -128,48 +91,11 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  loseLife() {
-    if (this.lives > 0) {
-      this.lives -= 1; // 🔥 Életek csökkentése
-
-      const lastHeart = this.hearts.pop();
-      if (lastHeart) {
-        lastHeart.destroy(); // 🔥 Szív eltüntetése
-      }
-
-      if (this.lives === 0) {
-        this.gameOver();
-      }
-    }
-  }
-
   gameOver() {
     this.gameState = 'GameOver';
     this.asteroids.stopSpawning();
-
-    const gameOverText = this.add
-      .text(this.scale.width / 2, this.scale.height / 2 - 50, 'GAME OVER', {
-        fontSize: '40px',
-        color: '#ff0000',
-        fontFamily: 'Arial',
-      })
-      .setOrigin(0.5);
-
-    const restartButton = this.add
-      .text(this.scale.width / 2, this.scale.height / 2 + 30, 'Restart', {
-        fontSize: '30px',
-        color: '#ffffff',
-        backgroundColor: '#333',
-        padding: { x: 20, y: 10 },
-      })
-      .setOrigin(0.5)
-      .setInteractive();
-
-    restartButton.on('pointerdown', () => {
-      restartButton.destroy();
-      gameOverText.destroy();
-      this.restartGame();
-    });
+    this.userInterface.gameOver();
+    this.stageTimer.remove();
   }
 
   restartGame() {
@@ -178,20 +104,55 @@ export class GameScene extends Phaser.Scene {
 
   startGame() {
     this.gameState = 'Playing';
-    this.lives = 3;
-    this.score = 0;
-    this.updateScoreText();
     this.asteroids.startSpawning();
+    this.userInterface.newGame();
 
-    this.hearts.forEach((heart) => heart.destroy());
-    this.hearts = [];
-    for (let i = 0; i < this.lives; i++) {
-      const heart = this.add
-        .image(10 + i * 20, 18, 'heart')
-        .setScale(0.5)
-        .setOrigin(0, 0);
-      this.hearts.push(heart);
-    }
+    this.stageTimer = this.time.addEvent({
+      delay: Math.min(
+        this.maxStageTime,
+        this.baseStageLength * (1 + 0.1 * this.stage)
+      ),
+      callback: () => {
+        this.stage += 1;
+        this.userInterface.updateStageText();
+        this.updateStageSettings();
+      },
+      loop: true,
+    });
+  }
+
+  private updateStageSettings() {
+    const {
+      gameSpeed,
+      asteroidCount,
+      asteroidMobility,
+      asteroidSize,
+      asteroidHealth,
+      cometProbability,
+      powerupProbability,
+    } = this.calculateStageSettings();
+
+    this.stars.setSpeed(gameSpeed);
+  }
+
+  private calculateStageSettings() {
+    const gameSpeed = this.baseSpeed * (1 + 1 * this.stage);
+    const asteroidCount = Math.round(8 * (1 + 0.2 * this.stage));
+    const asteroidMobility = 1 * (1 + 0.15 * this.stage);
+    const asteroidSize = Math.min(5, Math.floor(1 + 0.2 * this.stage));
+    const asteroidHealth = Math.min(5, Math.floor(1 + 0.2 * this.stage));
+    const cometProbability = Math.min(20, 0.2 * this.stage);
+    const powerupProbability = Math.min(30, 0.3 * this.stage);
+
+    return {
+      gameSpeed,
+      asteroidCount,
+      asteroidMobility,
+      asteroidSize,
+      asteroidHealth,
+      cometProbability,
+      powerupProbability,
+    };
   }
 
   update(): void {

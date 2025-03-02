@@ -1,4 +1,5 @@
 .vercel
 .netlify
+.idea
 node_modules
 dist
