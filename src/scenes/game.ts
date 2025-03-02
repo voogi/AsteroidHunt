@@ -1,23 +1,24 @@
 import Phaser from 'phaser';
 import { Stars } from '../components/stars';
 import { Spaceship } from '../components/spaceship';
+import { Asteroids } from '../components/asteroids';
+import { Controls } from '../components/controls';
+
+type GameState = 'MainMenu' | 'Playing' | 'GameOver';
 
 export class GameScene extends Phaser.Scene {
+  private gameState: GameState = 'MainMenu';
   private stars!: Stars;
   private spaceship!: Spaceship;
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private wasd!: any;
-  private isShooting = false;
-  private isTouching = false;
+  private asteroids!: Asteroids;
+  private controls!: Controls;
+  private score = 0;
+  private scoreText!: Phaser.GameObjects.Text;
+  private lives: number = 3;
+  private hearts: Phaser.GameObjects.Image[] = [];
 
   constructor() {
     super('Start');
-  }
-
-  fireBullet(x: number, y: number) {
-    const bullet = this.physics.add.sprite(x, y, 'bullet');
-    bullet.play('bullet_fly');
-    bullet.setVelocityY(-300);
   }
 
   preload(): void {
@@ -26,19 +27,38 @@ export class GameScene extends Phaser.Scene {
       frameHeight: 32,
       spacing: 0,
     });
-
     this.load.spritesheet('bullet', 'assets/bullet_2_12x20.png', {
       frameWidth: 12,
       frameHeight: 20,
     });
+    this.load.spritesheet('explosion', 'assets/exp2.png', {
+      frameWidth: 16,
+      frameHeight: 16,
+    });
+    this.load.image('asteroid', 'assets/asteroid.png');
+    this.load.image('heart', 'assets/heart.png');
   }
 
   create(): void {
     this.stars = new Stars(this);
     this.spaceship = new Spaceship(this);
+    this.asteroids = new Asteroids(this);
+    this.controls = new Controls(this, this.spaceship);
 
-    this.cursors = this.input.keyboard!.createCursorKeys();
-    this.wasd = this.input.keyboard!.addKeys('W,A,S,D');
+    const startButton = this.add
+      .text(this.scale.width / 2, this.scale.height / 2, 'Start', {
+        fontSize: '30px',
+        color: '#ffffff',
+        backgroundColor: '#333',
+        padding: { x: 20, y: 10 },
+      })
+      .setOrigin(0.5)
+      .setInteractive();
+
+    startButton.on('pointerdown', () => {
+      startButton.destroy();
+      this.startGame();
+    });
 
     this.anims.create({
       key: 'bullet_fly',
@@ -47,78 +67,141 @@ export class GameScene extends Phaser.Scene {
       repeat: -1,
     });
 
-    let startX = 0;
-    let startY = 0;
-    const maxSpeed = 1;
-    const speedMultiplier = 0.04;
-
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      this.fireBullet(this.spaceship.sprite.x, this.spaceship.sprite.y - 20);
+    this.anims.create({
+      key: 'explosion_anim',
+      frames: this.anims.generateFrameNumbers('explosion', {
+        start: 0,
+        end: 62,
+      }),
+      frameRate: 30,
+      repeat: 0,
     });
 
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      startX = pointer.x;
-      startY = pointer.y;
-      this.isTouching = true;
-    });
+    this.scoreText = this.add
+      .text(this.scale.width - 10, 10, 'Points: 0', {
+        fontSize: '20px',
+        color: '#ffffff',
+        fontFamily: 'Arial',
+        align: 'right',
+      })
+      .setOrigin(1, 0);
 
-    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (this.isTouching) {
-        const deltaX = pointer.x - startX;
-        const deltaY = pointer.y - startY;
+    for (let i = 0; i < this.lives; i++) {
+      const heart = this.add.image(10 + i * 20, 18, 'heart');
+      heart.setScale(0.5);
+      heart.setOrigin(0, 0);
+      this.hearts.push(heart);
+    }
 
-        const speedX = Phaser.Math.Clamp(
-          deltaX * speedMultiplier,
-          -maxSpeed,
-          maxSpeed
-        );
-        const speedY = Phaser.Math.Clamp(
-          deltaY * speedMultiplier,
-          -maxSpeed,
-          maxSpeed
-        );
-
-        this.spaceship.setJoystickInput(speedX, speedY);
+    this.physics.add.collider(
+      this.asteroids.getGroup(),
+      this.spaceship.getBullets(),
+      (asteroid: any, bullet: any) => {
+        this.playExplosion(asteroid.x, asteroid.y);
+        this.score += 1;
+        this.updateScoreText();
+        asteroid.destroy();
+        bullet.destroy();
       }
-    });
+    );
 
-    this.input.on('pointerup', () => {
-      this.isTouching = false;
-      this.spaceship.setJoystickInput(0, 0);
-      this.spaceship.moveToCenter();
+    this.physics.add.collider(
+      this.asteroids.getGroup(),
+      this.spaceship.sprite,
+      (ship: any, asteroid: any) => {
+        this.loseLife();
+        asteroid.destroy();
+      }
+    );
+  }
+
+  updateScoreText() {
+    this.scoreText.setText(`Points: ${this.score}`);
+  }
+
+  playExplosion(x: number, y: number) {
+    const explosion = this.add.sprite(x, y, 'explosion');
+    explosion.play('explosion_anim');
+
+    explosion.on('animationcomplete', () => {
+      explosion.destroy();
     });
   }
 
+  loseLife() {
+    if (this.lives > 0) {
+      this.lives -= 1; // 🔥 Életek csökkentése
+
+      const lastHeart = this.hearts.pop();
+      if (lastHeart) {
+        lastHeart.destroy(); // 🔥 Szív eltüntetése
+      }
+
+      if (this.lives === 0) {
+        this.gameOver();
+      }
+    }
+  }
+
+  gameOver() {
+    this.gameState = 'GameOver';
+    this.asteroids.stopSpawning();
+
+    const gameOverText = this.add
+      .text(this.scale.width / 2, this.scale.height / 2 - 50, 'GAME OVER', {
+        fontSize: '40px',
+        color: '#ff0000',
+        fontFamily: 'Arial',
+      })
+      .setOrigin(0.5);
+
+    const restartButton = this.add
+      .text(this.scale.width / 2, this.scale.height / 2 + 30, 'Restart', {
+        fontSize: '30px',
+        color: '#ffffff',
+        backgroundColor: '#333',
+        padding: { x: 20, y: 10 },
+      })
+      .setOrigin(0.5)
+      .setInteractive();
+
+    restartButton.on('pointerdown', () => {
+      restartButton.destroy();
+      gameOverText.destroy();
+      this.restartGame();
+    });
+  }
+
+  restartGame() {
+    this.scene.restart();
+  }
+
+  startGame() {
+    this.gameState = 'Playing';
+    this.lives = 3;
+    this.score = 0;
+    this.updateScoreText();
+    this.asteroids.startSpawning();
+
+    this.hearts.forEach((heart) => heart.destroy());
+    this.hearts = [];
+    for (let i = 0; i < this.lives; i++) {
+      const heart = this.add
+        .image(10 + i * 20, 18, 'heart')
+        .setScale(0.5)
+        .setOrigin(0, 0);
+      this.hearts.push(heart);
+    }
+  }
+
   update(): void {
-    if (this.stars && this.spaceship) {
-      this.stars.update(this.spaceship.getSpeedMultiplier());
-      this.spaceship.update();
-
-      let speedX = 0;
-      let speedY = 0;
-      const speed = 1;
-
-      if (this.isTouching) {
-        return;
+    if (this.gameState === 'Playing') {
+      if (this.stars && this.spaceship) {
+        this.stars.update(this.spaceship.getSpeedMultiplier());
+        this.spaceship.update();
+        this.asteroids.update();
+        this.controls.update();
       }
-
-      if (this.cursors.left.isDown || this.wasd.A.isDown) {
-        speedX = -speed;
-      } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-        speedX = speed;
-      }
-
-      if (this.cursors.space.isDown && !this.isShooting) {
-        this.fireBullet(this.spaceship.sprite.x, this.spaceship.sprite.y - 20);
-        this.isShooting = true; // 🔥 Flag beállítása, hogy lő
-      }
-
-      // 🔥 Flag visszaállítása, ha felengedték a gombot
-      if (Phaser.Input.Keyboard.JustUp(this.cursors.space)) {
-        this.isShooting = false;
-      }
-
-      this.spaceship.setJoystickInput(speedX, speedY);
     }
   }
 }
