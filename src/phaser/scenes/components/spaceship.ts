@@ -8,6 +8,7 @@ export class Spaceship {
   private joystickX: number;
   private joystickY: number;
   private bullets: Phaser.Physics.Arcade.Group;
+  public damage: number = 1;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;

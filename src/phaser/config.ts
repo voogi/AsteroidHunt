@@ -1,7 +1,8 @@
+import { BootScene, GameScene, LoaderScene } from './scenes';
+
 export const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   title: 'Rocket',
-  parent: 'game-container',
   width: window.innerWidth,
   height: window.innerHeight,
   pixelArt: false,
@@ -16,9 +17,7 @@ export const config: Phaser.Types.Core.GameConfig = {
     activePointers: 3,
   },
   scale: {
-    mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-
-  plugins: {},
+  scene: [BootScene, LoaderScene, GameScene],
 };
